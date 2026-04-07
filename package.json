@@ -1,0 +1,43 @@
+{
+  "name": "truestream",
+  "version": "0.1.0",
+  "description": "Real-time deepfake detection for video calls with cryptographic identity verification",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt dev",
+    "dev:stub": "wxt dev --mode stub",
+    "build": "wxt build",
+    "build:stub": "wxt build --mode stub",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
+    "format": "prettier --write src",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "download-models": "bash scripts/download-models.sh"
+  },
+  "dependencies": {
+    "@preact/signals": "^1.2.0",
+    "onnxruntime-web": "^1.17.0",
+    "preact": "^10.19.0",
+    "tailwindcss": "^3.4.0",
+    "wxt": "^0.19.0",
+    "zustand": "^4.5.0"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.8.0",
+    "@testing-library/preact": "^3.2.0",
+    "@types/chrome": "^0.1.39",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "@vitest/coverage-v8": "^1.6.0",
+    "autoprefixer": "^10.4.0",
+    "eslint": "^8.57.0",
+    "jsdom": "^24.0.0",
+    "postcss": "^8.4.0",
+    "prettier": "^3.2.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.output/
+*.local
+.env
+src/models/assets/*.onnx
+coverage/
+.wxt/
+*.zip

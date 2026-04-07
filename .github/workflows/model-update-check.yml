@@ -1,0 +1,32 @@
+name: Model Update Check
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Monday 09:00 UTC
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Check for model updates
+        id: check
+        run: npx ts-node scripts/check-model-update.ts
+        continue-on-error: true
+      - name: Create issue if update available
+        if: steps.check.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Model update available',
+              body: 'A new model version is available on the manifest. Run `npm run download-models` to update.',
+              labels: ['model-update'],
+            });

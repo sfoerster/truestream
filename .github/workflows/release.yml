@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    runs-on: ubuntu-latest
+    needs: ci
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run build
+      - name: Zip extension
+        run: cd .output/chrome-mv3 && zip -r ../../truestream-${{ github.ref_name }}.zip .
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: truestream-${{ github.ref_name }}.zip
+          generate_release_notes: true
+
+      # TODO: Chrome Web Store upload
+      # - name: Upload to Chrome Web Store
+      #   uses: topheman/chrome-extension-upload-action@v1
+      #   with:
+      #     extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
+      #     client-id: ${{ secrets.CHROME_CLIENT_ID }}
+      #     client-secret: ${{ secrets.CHROME_CLIENT_SECRET }}
+      #     refresh-token: ${{ secrets.CHROME_REFRESH_TOKEN }}
+      #     zip-path: truestream-${{ github.ref_name }}.zip
