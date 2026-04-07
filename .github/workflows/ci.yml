@@ -19,6 +19,10 @@ jobs:
           path: node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
       - run: npm ci
+        env:
+          npm_config_fetch_retries: 5
+          npm_config_fetch_retry_mintimeout: 15000
+          npm_config_fetch_retry_maxtimeout: 120000
       - run: npm run lint
 
   typecheck:
@@ -33,6 +37,10 @@ jobs:
           path: node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
       - run: npm ci
+        env:
+          npm_config_fetch_retries: 5
+          npm_config_fetch_retry_mintimeout: 15000
+          npm_config_fetch_retry_maxtimeout: 120000
       - run: npm run typecheck
 
   test:
@@ -47,6 +55,10 @@ jobs:
           path: node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
       - run: npm ci
+        env:
+          npm_config_fetch_retries: 5
+          npm_config_fetch_retry_mintimeout: 15000
+          npm_config_fetch_retry_maxtimeout: 120000
       - run: npm run test:coverage
       - uses: actions/upload-artifact@v4
         with:
@@ -66,6 +78,10 @@ jobs:
           path: node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
       - run: npm ci
+        env:
+          npm_config_fetch_retries: 5
+          npm_config_fetch_retry_mintimeout: 15000
+          npm_config_fetch_retry_maxtimeout: 120000
       - run: npm run build
       - uses: actions/upload-artifact@v4
         with:
@@ -85,4 +101,8 @@ jobs:
           path: node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
       - run: npm ci
+        env:
+          npm_config_fetch_retries: 5
+          npm_config_fetch_retry_mintimeout: 15000
+          npm_config_fetch_retry_maxtimeout: 120000
       - run: npm run build:stub
