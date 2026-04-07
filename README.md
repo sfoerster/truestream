@@ -205,4 +205,4 @@ We welcome contributions. Please read [docs/CONTRIBUTING.md](docs/CONTRIBUTING.m
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for the full text.
+Apache License 2.0. See [LICENSE](LICENSE) for the full text.
