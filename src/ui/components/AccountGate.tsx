@@ -1,4 +1,4 @@
-import { h } from 'preact';
+
 
 /** Shown when accountState === 'not_connected'. Explains Vinsium. */
 export function AccountGate() {

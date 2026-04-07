@@ -1,4 +1,3 @@
-import { h } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import { useSettingsStore, hydrateSettingsStore } from '../../store/settings-store';
 import { getAccountState, clearToken } from '../../vinsium/auth';

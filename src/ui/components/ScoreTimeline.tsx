@@ -1,4 +1,4 @@
-import { h } from 'preact';
+
 
 interface ScoreTimelineProps {
   scores: number[];

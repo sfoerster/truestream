@@ -1,4 +1,3 @@
-import { h } from 'preact';
 import { AttestationResult } from '../../types/vinsium';
 
 interface VerifiedBadgeProps {

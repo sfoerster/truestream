@@ -14,7 +14,7 @@ export default defineBackground(() => {
     }
 
     sessionManager = new SessionManager();
-    const sessionId = sessionManager.startSession(msg.platform);
+    sessionManager.startSession(msg.platform);
 
     // Open side panel if available
     try {

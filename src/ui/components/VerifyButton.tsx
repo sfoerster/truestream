@@ -1,4 +1,3 @@
-import { h } from 'preact';
 import { useState } from 'preact/hooks';
 import { TrustLevel } from '../../types/trust';
 import { VinsiumAccountState } from '../../types/vinsium';

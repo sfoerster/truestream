@@ -1,4 +1,3 @@
-import { h } from 'preact';
 import { TrustLevel } from '../../types/trust';
 
 interface ScoreGaugeProps {

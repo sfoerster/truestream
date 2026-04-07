@@ -1,4 +1,3 @@
-import { h } from 'preact';
 import { useTrustLevel } from '../hooks/useTrustLevel';
 import { useSettingsStore } from '../../store/settings-store';
 import { TrustLevel } from '../../types/trust';

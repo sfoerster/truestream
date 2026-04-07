@@ -1,4 +1,3 @@
-import { h } from 'preact';
 import { useState, useCallback } from 'preact/hooks';
 import { SessionState } from '../../types/session';
 

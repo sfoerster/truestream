@@ -1,4 +1,3 @@
-import { h } from 'preact';
 import { TrustIndicator } from '../../ui/components/TrustIndicator';
 import { ScoreGauge } from '../../ui/components/ScoreGauge';
 import { ScoreTimeline } from '../../ui/components/ScoreTimeline';
