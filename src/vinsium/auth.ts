@@ -17,11 +17,14 @@ async function getEncryptionKey(): Promise<CryptoKey> {
   if (stored[INSTALL_KEY]) {
     keyMaterial = base64ToBuffer(stored[INSTALL_KEY] as string);
   } else {
-    keyMaterial = crypto.getRandomValues(new Uint8Array(32)).buffer;
+    // Copy into a standalone ArrayBuffer — some runtimes return a
+    // buffer-backed view that SubtleCrypto.importKey rejects.
+    const raw = crypto.getRandomValues(new Uint8Array(32));
+    keyMaterial = raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength);
     await chrome.storage.local.set({ [INSTALL_KEY]: bufferToBase64(keyMaterial) });
   }
 
-  return crypto.subtle.importKey('raw', keyMaterial, { name: 'AES-GCM' }, false, [
+  return crypto.subtle.importKey('raw', new Uint8Array(keyMaterial), { name: 'AES-GCM' }, false, [
     'encrypt',
     'decrypt',
   ]);
@@ -34,8 +37,8 @@ export async function getToken(): Promise<string | null> {
 
   try {
     const key = await getEncryptionKey();
-    const iv = base64ToBuffer(stored[TOKEN_IV_KEY] as string);
-    const ciphertext = base64ToBuffer(stored[TOKEN_KEY] as string);
+    const iv = new Uint8Array(base64ToBuffer(stored[TOKEN_IV_KEY] as string));
+    const ciphertext = new Uint8Array(base64ToBuffer(stored[TOKEN_KEY] as string));
     const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
     return new TextDecoder().decode(decrypted);
   } catch {
@@ -49,11 +52,15 @@ export async function setToken(token: string): Promise<void> {
   const key = await getEncryptionKey();
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const encoded = new TextEncoder().encode(token);
-  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: new Uint8Array(iv) },
+    key,
+    new Uint8Array(encoded),
+  );
 
   await chrome.storage.local.set({
     [TOKEN_KEY]: bufferToBase64(ciphertext),
-    [TOKEN_IV_KEY]: bufferToBase64(iv.buffer),
+    [TOKEN_IV_KEY]: bufferToBase64(iv.buffer.slice(iv.byteOffset, iv.byteOffset + iv.byteLength)),
   });
 }
 
