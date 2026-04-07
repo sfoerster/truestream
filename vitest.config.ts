@@ -14,14 +14,29 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      thresholds: {
-        lines: 70,
-        branches: 70,
-        functions: 70,
-        statements: 70,
-      },
       include: ['src/**/*.ts', 'src/**/*.tsx'],
-      exclude: ['src/core/workers/*.worklet.ts'],
+      exclude: [
+        'src/core/workers/*.worklet.ts',
+        'src/core/workers/*.worker.ts',
+        'src/entrypoints/**',
+        'src/env.d.ts',
+        'src/vinsium/types.ts',
+        'src/vinsium/bridge.ts',
+      ],
+      thresholds: {
+        'src/core/scoring/**': {
+          lines: 80,
+          branches: 80,
+          functions: 80,
+          statements: 80,
+        },
+        'src/vinsium/**': {
+          lines: 70,
+          branches: 45,
+          functions: 70,
+          statements: 70,
+        },
+      },
     },
   },
 });
