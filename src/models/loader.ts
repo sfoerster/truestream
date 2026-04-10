@@ -1,4 +1,4 @@
-import { ModelManifestEntry, BUNDLED_MODELS } from './registry';
+import { ModelManifest, ModelManifestEntry, BUNDLED_MODELS, MODEL_MANIFEST_URL } from './registry';
 
 /** Storage key prefix for cached model data */
 const MODEL_CACHE_PREFIX = 'truestream_model_';
@@ -17,8 +17,15 @@ export async function load(modelId: string): Promise<ArrayBuffer> {
     return cached;
   }
 
-  // Fall back to bundled model
-  return loadBundled(modelId);
+  try {
+    return await loadBundled(modelId);
+  } catch (error) {
+    const downloaded = await downloadLatest(modelId);
+    if (downloaded) {
+      return downloaded;
+    }
+    throw error;
+  }
 }
 
 /**
@@ -69,6 +76,27 @@ async function loadBundled(modelId: string): Promise<ArrayBuffer> {
   return response.arrayBuffer();
 }
 
+async function downloadLatest(modelId: string): Promise<ArrayBuffer | null> {
+  const entry = await fetchManifestEntry(modelId);
+  if (!entry) return null;
+
+  const url = `https://models.truestream.app/v${entry.version}/${entry.filename}`;
+  const response = await fetch(url);
+  if (!response.ok) return null;
+
+  const data = await response.arrayBuffer();
+  const isValid = await verifyIntegrity(data, entry);
+  if (!isValid) return null;
+
+  await chrome.storage.local.set({
+    [`${MODEL_CACHE_PREFIX}${modelId}`]: arrayBufferToBase64(data),
+    [`${MODEL_CACHE_PREFIX}${modelId}_sha256`]: entry.sha256,
+    [`${MODEL_CACHE_PREFIX}${modelId}_version`]: entry.version,
+  });
+
+  return data;
+}
+
 /**
  * Verify a model's SHA-256 hash against an expected value.
  *
@@ -105,4 +133,24 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
     bytes[i] = binary.charCodeAt(i);
   }
   return bytes.buffer;
+}
+
+async function fetchManifestEntry(modelId: string): Promise<ModelManifestEntry | null> {
+  try {
+    const response = await fetch(MODEL_MANIFEST_URL);
+    if (!response.ok) return null;
+    const manifest = (await response.json()) as ModelManifest;
+    return manifest.models.find((entry) => entry.id === modelId) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
 }

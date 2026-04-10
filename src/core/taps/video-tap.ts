@@ -1,9 +1,9 @@
 /**
  * VideoTap singleton - captures frames from a remote video track at 4fps
- * and sends them to the inference pipeline via typed messaging.
+ * and forwards them to the isolated-world bridge.
  */
 
-import { sendMessage } from '../../messaging/typed-messaging';
+import { postPageMessage } from '../../messaging/window-bridge';
 
 const SAMPLE_INTERVAL_MS = 250;
 const FRAME_WIDTH = 224;
@@ -17,7 +17,7 @@ let samplingInterval: ReturnType<typeof setInterval> | null = null;
 let activeSessionId: string | null = null;
 
 /** Set the session ID for frame messages */
-function setSessionId(sessionId: string): void {
+function setSessionId(sessionId: string | null): void {
   activeSessionId = sessionId;
 }
 
@@ -28,15 +28,16 @@ function sampleFrame(): void {
 
   ctx.drawImage(videoElement, 0, 0, FRAME_WIDTH, FRAME_HEIGHT);
   const imageData = ctx.getImageData(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+  const frameData = imageData.data.buffer.slice(0);
 
-  sendMessage({
+  postPageMessage({
     type: 'VIDEO_FRAME',
-    frameData: imageData.data.buffer,
+    source: 'truestream-window-bridge',
+    direction: 'from-page',
+    frameData,
     timestamp: Date.now(),
     sessionId: activeSessionId,
-  }).catch(() => {
-    // Non-fatal: background may not be ready
-  });
+  }, [frameData]);
 }
 
 /**

@@ -16,6 +16,12 @@ declare function defineContentScript(definition: {
   allFrames?: boolean;
   matchAboutBlank?: boolean;
   excludeMatches?: string[];
+  world?: 'ISOLATED' | 'MAIN';
+}): void;
+
+declare function defineUnlistedScript(main: () => void): void;
+declare function defineUnlistedScript(definition: {
+  main: () => void;
 }): void;
 
 interface ImportMetaEnv {

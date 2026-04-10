@@ -12,7 +12,7 @@ export interface VideoFrameMessage {
 /** Audio features extracted from the audio worklet */
 export interface AudioFeaturesMessage {
   type: 'AUDIO_FEATURES';
-  features: Float32Array;
+  features: ArrayBuffer;
   timestamp: number;
   sessionId: string;
 }
@@ -38,6 +38,7 @@ export interface TrustLevelChangeMessage {
 /** A new detection session has started */
 export interface SessionStartMessage {
   type: 'SESSION_START';
+  sessionId: string;
   platform: string;
 }
 

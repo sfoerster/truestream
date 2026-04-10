@@ -7,7 +7,7 @@ import * as ort from 'onnxruntime-web';
 
 interface InitMessage {
   type: 'init';
-  modelPath: string;
+  modelData: ArrayBuffer;
 }
 
 interface FrameMessage {
@@ -79,10 +79,10 @@ async function runInference(frameData: ArrayBuffer, timestamp: number): Promise<
 }
 
 /** Initialize the ONNX model session */
-async function initModel(modelPath: string): Promise<void> {
+async function initModel(modelData: ArrayBuffer): Promise<void> {
   try {
     ort.env.wasm.numThreads = 1;
-    session = await ort.InferenceSession.create(modelPath, {
+    session = await ort.InferenceSession.create(modelData, {
       executionProviders: ['wasm'],
       graphOptimizationLevel: 'all',
     });
@@ -102,10 +102,10 @@ async function initModel(modelPath: string): Promise<void> {
 }
 
 self.onmessage = (event: MessageEvent<WorkerInput>) => {
-  const msg = event.data;
-  switch (msg.type) {
-    case 'init':
-      initModel(msg.modelPath);
+    const msg = event.data;
+    switch (msg.type) {
+      case 'init':
+      initModel(msg.modelData);
       break;
     case 'VIDEO_FRAME':
       runInference(msg.frameData, msg.timestamp);

@@ -8,6 +8,11 @@ import { CompositeScorer } from '../scoring/composite-scorer';
 import { TrustStateMachine } from '../scoring/trust-state-machine';
 import { onMessage, sendMessage } from '../../messaging/typed-messaging';
 import { ScoredFrame, ScoredWindow } from '../../types/session';
+import { load } from '../../models/loader';
+import { clearStoredSession, setStoredSession } from './session-store';
+import type { AttestationResult } from '../../types/vinsium';
+import VideoInferenceWorker from '../workers/video-inference.worker?worker';
+import AudioInferenceWorker from '../workers/audio-inference.worker?worker';
 
 /** Generate a UUID v4 */
 function uuid(): string {
@@ -30,8 +35,7 @@ export class SessionManager {
    * Start a new detection session.
    * @returns The generated session ID
    */
-  startSession(platform: string): string {
-    const sessionId = uuid();
+  async startSession(platform: string, sessionId = uuid()): Promise<string> {
 
     this.session = {
       sessionId,
@@ -47,21 +51,59 @@ export class SessionManager {
 
     this.stateMachine.reset();
 
+    const removeVideoListener = onMessage('VIDEO_FRAME', (msg) => {
+      if (msg.sessionId !== sessionId || !this.videoWorker) return;
+      this.videoWorker.postMessage(msg, [msg.frameData]);
+    });
+
+    const removeAudioListener = onMessage('AUDIO_FEATURES', (msg) => {
+      if (msg.sessionId !== sessionId || !this.audioWorker) return;
+      this.audioWorker.postMessage(msg, [msg.features]);
+    });
+
+    const removeVinsiumPendingListener = onMessage('VINSIUM_PENDING', (msg) => {
+      if (msg.sessionId !== sessionId || !this.session) return;
+      this.session.verificationState = {
+        status: 'pending',
+        challengeId: msg.challengeId,
+        remoteIdentifier: msg.remoteIdentifier,
+      };
+      this.persistSession();
+    });
+
+    const removeVinsiumVerifiedListener = onMessage('VINSIUM_VERIFIED', (msg) => {
+      if (msg.sessionId !== sessionId || !this.session) return;
+      this.applyVerifiedAttestation(msg.attestation);
+    });
+
+    const removeVinsiumFailedListener = onMessage('VINSIUM_FAILED', (msg) => {
+      if (msg.sessionId !== sessionId || !this.session) return;
+      this.session.verificationState = {
+        status: 'failed',
+        reason: msg.reason,
+      };
+      this.persistSession();
+    });
+
+    this.cleanupFns.push(
+      removeVideoListener,
+      removeAudioListener,
+      removeVinsiumPendingListener,
+      removeVinsiumVerifiedListener,
+      removeVinsiumFailedListener,
+    );
+
+    const [videoModelData, audioModelData] = await Promise.all([
+      load('video-efficientnet-b0'),
+      load('audio-rawnet2-lite'),
+    ]);
+
     // Initialize inference workers
-    this.videoWorker = new Worker(
-      new URL('../workers/video-inference.worker.ts', import.meta.url),
-      { type: 'module' },
-    );
-    this.audioWorker = new Worker(
-      new URL('../workers/audio-inference.worker.ts', import.meta.url),
-      { type: 'module' },
-    );
+    this.videoWorker = new VideoInferenceWorker();
+    this.audioWorker = new AudioInferenceWorker();
 
-    const videoModelPath = chrome.runtime.getURL('models/assets/video-efficientnet-b0.onnx');
-    const audioModelPath = chrome.runtime.getURL('models/assets/audio-rawnet2-lite.onnx');
-
-    this.videoWorker.postMessage({ type: 'init', modelPath: videoModelPath });
-    this.audioWorker.postMessage({ type: 'init', modelPath: audioModelPath });
+    this.videoWorker.postMessage({ type: 'init', modelData: videoModelData }, [videoModelData]);
+    this.audioWorker.postMessage({ type: 'init', modelData: audioModelData }, [audioModelData]);
 
     // Listen for inference results from video worker
     this.videoWorker.onmessage = (event) => {
@@ -101,19 +143,6 @@ export class SessionManager {
       }
     };
 
-    // Listen for incoming frames and features from content scripts
-    const removeVideoListener = onMessage('VIDEO_FRAME', (msg) => {
-      if (msg.sessionId !== sessionId || !this.videoWorker) return;
-      this.videoWorker.postMessage(msg);
-    });
-
-    const removeAudioListener = onMessage('AUDIO_FEATURES', (msg) => {
-      if (msg.sessionId !== sessionId || !this.audioWorker) return;
-      this.audioWorker.postMessage(msg);
-    });
-
-    this.cleanupFns.push(removeVideoListener, removeAudioListener);
-
     // Persist initial session state
     this.persistSession();
 
@@ -133,6 +162,7 @@ export class SessionManager {
     this.cleanupFns = [];
 
     this.session = null;
+    clearStoredSession().catch(() => {});
     return finalState;
   }
 
@@ -173,11 +203,31 @@ export class SessionManager {
     this.persistSession();
   }
 
+  private applyVerifiedAttestation(attestation: AttestationResult): void {
+    if (!this.session) return;
+
+    this.session.verificationState = {
+      status: 'verified',
+      attestation,
+    };
+
+    const change = this.stateMachine.setVerified(attestation);
+    this.session.trustLevel = change.to;
+    this.session.trustHistory.push(change);
+
+    sendMessage({
+      type: 'TRUST_LEVEL_CHANGE',
+      sessionId: this.session.sessionId,
+      change,
+      currentScore: this.session.compositeTrustScore,
+    }).catch(() => {});
+
+    this.persistSession();
+  }
+
   /** Persist session state to chrome.storage.session */
   private persistSession(): void {
     if (!this.session) return;
-    chrome.storage.session
-      .set({ truestream_session: JSON.parse(JSON.stringify(this.session)) })
-      .catch(() => {});
+    setStoredSession(this.session).catch(() => {});
   }
 }

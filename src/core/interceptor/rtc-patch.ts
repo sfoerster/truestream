@@ -6,7 +6,6 @@
 import { VideoTap } from '../taps/video-tap';
 import { AudioTap } from '../taps/audio-tap';
 
-let originalAddTrack: typeof RTCPeerConnection.prototype.addTrack | null = null;
 let originalOnTrackDescriptor: PropertyDescriptor | null = null;
 let originalAddEventListener: typeof RTCPeerConnection.prototype.addEventListener | null = null;
 let isPatched = false;
@@ -23,8 +22,9 @@ function handleTrack(track: MediaStreamTrack): void {
 }
 
 /**
- * Patch RTCPeerConnection prototype to intercept WebRTC media tracks.
- * Patches addTrack, ontrack setter, and addEventListener('track').
+ * Patch RTCPeerConnection prototype to intercept incoming remote tracks.
+ * The addTrack path is intentionally left alone so local outbound media
+ * is not scored as if it were a remote participant.
  */
 export function patch(): void {
   if (isPatched) return;
@@ -33,19 +33,9 @@ export function patch(): void {
     return;
   }
 
-  originalAddTrack = RTCPeerConnection.prototype.addTrack;
   originalOnTrackDescriptor =
     Object.getOwnPropertyDescriptor(RTCPeerConnection.prototype, 'ontrack') ?? null;
   originalAddEventListener = RTCPeerConnection.prototype.addEventListener;
-
-  // Patch addTrack - intercepts outgoing tracks
-  RTCPeerConnection.prototype.addTrack = function patchedAddTrack(
-    track: MediaStreamTrack,
-    ...streams: MediaStream[]
-  ): RTCRtpSender {
-    handleTrack(track);
-    return originalAddTrack!.call(this, track, ...streams);
-  };
 
   // Patch ontrack setter - intercepts incoming tracks
   Object.defineProperty(RTCPeerConnection.prototype, 'ontrack', {
@@ -94,10 +84,6 @@ export function patch(): void {
 export function unpatch(): void {
   if (!isPatched) return;
 
-  if (originalAddTrack) {
-    RTCPeerConnection.prototype.addTrack = originalAddTrack;
-    originalAddTrack = null;
-  }
   if (originalOnTrackDescriptor) {
     Object.defineProperty(RTCPeerConnection.prototype, 'ontrack', originalOnTrackDescriptor);
     originalOnTrackDescriptor = null;

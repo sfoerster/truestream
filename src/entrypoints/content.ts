@@ -1,7 +1,7 @@
-import { init, teardown } from '../core/interceptor';
 import { detectPlatform } from '../platform/detector';
 import { TrustRingOverlay } from '../overlay/trust-ring';
 import { onMessage, sendMessage } from '../messaging/typed-messaging';
+import { isWindowBridgeMessage, postSessionSync } from '../messaging/window-bridge';
 import { findRemoteVideoElement as findMeetVideo } from '../platform/adapters/google-meet';
 import { findRemoteVideoElement as findTeamsVideo } from '../platform/adapters/teams-web';
 import { findRemoteVideoElement as findZoomVideo } from '../platform/adapters/zoom-web';
@@ -18,11 +18,34 @@ export default defineContentScript({
 
   main() {
     const platform = detectPlatform();
+    const sessionId = crypto.randomUUID();
     const overlay = new TrustRingOverlay();
     let retryInterval: ReturnType<typeof setInterval> | null = null;
+    let sessionEnded = false;
 
-    // Initialize the media interceptor (RTC patch + fallback if needed)
-    init();
+    function syncSessionToPage(): void {
+      postSessionSync(sessionId);
+    }
+
+    function endSession(): void {
+      if (sessionEnded) return;
+      sessionEnded = true;
+      postSessionSync(null);
+      sendMessage({ type: 'SESSION_END', sessionId }).catch(() => {});
+    }
+
+    const handleWindowMessage = (event: MessageEvent<unknown>) => {
+      if (event.source !== window || !isWindowBridgeMessage(event.data)) return;
+      if (event.data.direction !== 'from-page') return;
+
+      if (event.data.type === 'VIDEO_FRAME') {
+        sendMessage(event.data).catch(() => {});
+      } else if (event.data.type === 'AUDIO_FEATURES') {
+        sendMessage(event.data).catch(() => {});
+      }
+    };
+
+    window.addEventListener('message', handleWindowMessage);
 
     // Find the remote video element using platform-specific adapter
     function findRemoteVideo(): HTMLVideoElement | null {
@@ -81,14 +104,19 @@ export default defineContentScript({
     });
 
     // Send SESSION_START to the background
-    sendMessage({ type: 'SESSION_START', platform }).catch(() => {});
+    syncSessionToPage();
+    setTimeout(syncSessionToPage, 0);
+    document.addEventListener('DOMContentLoaded', syncSessionToPage, { once: true });
+    sendMessage({ type: 'SESSION_START', sessionId, platform }).catch(() => {});
 
     // Clean up on page unload
+    window.addEventListener('pagehide', endSession, { once: true });
     window.addEventListener('beforeunload', () => {
       removeTrustListener();
+      window.removeEventListener('message', handleWindowMessage);
       overlay.detach();
-      teardown();
       if (retryInterval !== null) clearInterval(retryInterval);
+      endSession();
     });
   },
 });

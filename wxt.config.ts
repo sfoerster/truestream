@@ -21,17 +21,20 @@ export default defineConfig({
     content_security_policy: {
       extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
     },
-    web_accessible_resources: [
-      {
-        resources: ['models/assets/*.onnx', 'audio-processor.worklet.js'],
-        matches: [
-          'https://meet.google.com/*',
-          'https://teams.microsoft.com/*',
-          'https://zoom.us/*',
-          'https://*.whereby.com/*',
-        ],
-      },
-    ],
+  },
+  transformManifest(manifest) {
+    manifest.content_scripts ??= [];
+    manifest.content_scripts.push({
+      matches: [
+        'https://meet.google.com/*',
+        'https://teams.microsoft.com/*',
+        'https://zoom.us/*',
+        'https://*.whereby.com/*',
+      ],
+      run_at: 'document_start',
+      world: 'MAIN',
+      js: ['content-main.js'],
+    });
   },
   vite: () =>
     ({
